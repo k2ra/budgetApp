@@ -8,13 +8,20 @@ import {
     FlatList,
     Modal,
     Dimensions,
-    TextInput } from 'react-native';
+    TextInput,
+    AsyncStorage } from 'react-native';
 import { List, ListItem} from 'react-native-elements';    
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import TopBox from './Topbox';
+import AddBudget from './AddBudget';
 
-const gastos=[{articulo:'galleta', costo:'$0.55'}];
+
+
 
 var screen = Dimensions.get('window');
+
+
+
 export default class App extends React.Component {
   
     constructor(props){
@@ -26,9 +33,16 @@ export default class App extends React.Component {
             articulo:'',
             costo:'',
             ingreso:2000,
+            listado:[],
         };
         
+       // this._getList = this._getList.bind(this);
         
+    }
+    static navigationOptions =({ navigation })=>{
+		return {
+			header: null,
+        }
     }
 
     setModalVisible(visible) {
@@ -40,15 +54,98 @@ export default class App extends React.Component {
        this.state.sample.unshift({articulo:this.state.articulo, costo:this.state.costo});
 
         this.setState({sample:this.state.sample.slice(0), ingreso: this.state.ingreso -this.state.costo})
+        this.save(this.state.sample);
+    }
+    
+
+    _saveList(){
+        this.state.sample.unshift({articulo:this.state.articulo, costo:this.state.costo});
+        this.setState({sample:this.state.sample.slice(0), ingreso: this.state.ingreso -this.state.costo})
+
+        try{
+            AsyncStorage.getItem('registry').then((value) =>{
+                if(value !== null){
+                    const array = JSON.parse(value);
+                    array.unshift(this.state.sample);
+                    console.log("save"+ " "+ array);
+                    AsyncStorage.setItem('registry',JSON.stringify(array));
+                    AsyncStorage.setItem('budget',JSON.stringify(this.state.ingreso));  
+                    this._getList();
+                }
+                else{
+                    const array=[];
+                    array.unshift (this.state.sample);
+                    //array.push(this.state.sample);
+                    AsyncStorage.setItem('registry',JSON.stringify(array));
+                    AsyncStorage.setItem('budget',JSON.stringify(this.state.ingreso));  
+                    this._getList();
+                }
+
+
+
+            })
+
+           // AsyncStorage.setItem('budget',JSON.stringify(this.state.ingreso));            
+            console.log("presupuesto"+" "+ this.state.ingreso);
+        }
+        catch(error){
+            alert(error.message);
+        }
+
     }
 
-    _keyExtractor = (item, index) => item.articulo;
+    _getList = async() => {
+        
+        try{
+           
+            let list = await AsyncStorage.getItem('registry');
+            list = JSON.parse(list);
+            console.log(list);
+            this.setState({listado:list});
+
+            let presupuesto = await AsyncStorage.getItem('budget').then((value)=>{
+                if (value !== null){
+                    presupuesto = JSON.parse(value);
+                     console.log("presupuesto"+" "+presupuesto);
+                    this.setState({ingreso:presupuesto});
+                }
+                else{
+                    AsyncStorage.setItem('budget',JSON.stringify(this.state.ingreso));
+                    presupuesto = JSON.parse(value);
+                     console.log("presupuesto"+" "+presupuesto);
+                    this.setState({ingreso:presupuesto});
+                }
+            })
+           // presupuesto = JSON.parse(presupuesto);
+           // console.log("presupuesto"+" "+presupuesto);
+            //this.setState({ingreso:presupuesto});
+            //return list;
+        }
+        catch(error){
+            alert(error.message);
+        }
+
+        
+    }
+    _deleteList(){
+        AsyncStorage.removeItem('registry');
+        AsyncStorage.removeItem('budget');
+    }
+
+    componentDidMount(){
+      this._getList();
+      
+      //console.log(this.state.listado);
+    }
+    
+
+    _keyExtractor = (item, index) => index.toString();
 
       
   render() {
     return (
       <View style={styles.container}>
-
+        
         <Modal 
           animationType="fade"
           transparent={true}
@@ -65,6 +162,8 @@ export default class App extends React.Component {
                     name='close'
                      />
                 </TouchableOpacity>
+
+                
                 <View style={styles.modalViewIn}>
             
                     <Text style={styles.textTitle}>Agregar Gasto</Text>
@@ -79,40 +178,44 @@ export default class App extends React.Component {
                         style={styles.input}
                         placeholder="Costo"
                         underlineColorAndroid="transparent"
+                        keyboardType ="numeric"
                         onChangeText ={(costo) => this.setState({costo})}
                         value={this.state.costo}
                     />
 
                     <TouchableOpacity style={styles.botonIngresarGastos}
-                    onPress={this._addReplay.bind(this)}
+                    onPress={this._saveList.bind(this)}
                     >
                     <Text>Agregar</Text>
                     </TouchableOpacity>
                 </View>
+
             </View>
         </Modal>
-            <View style={styles.element1}>
-                <Text style={styles.periodoText}>Julio</Text>
-                <Text style={styles.montoText}>{this.state.ingreso}</Text>
-                <TouchableOpacity style={styles.botonIngresos}
-                    onPress={()=>this.setState({ingreso:(this.state.ingreso)+1})}
-                >
-                    <Text> Agregar Ingresos
-                    </Text>
-                </TouchableOpacity>    
-            </View>
+
+            <TopBox navigation={this.props.navigation} presupuesto={this.state.ingreso}/>
+
             <View style={styles.element2}>
+            {console.log("listado"+ this.state.listado)}
                 <List style={styles.listaContenedor}> 
+                
                     <FlatList
-                        data ={this.state.sample}
-                        renderItem={({item}) =>(
+                    
+                        data ={this.state.listado}
+                        
+                        renderItem={({item,index}) =>(
                             <ListItem
-                                title={item.articulo}
-                                rightTitle= {item.costo}
+                                
+                                title={<Text style = {styles.itemStyleDesc}>{item[0].articulo}</Text>}
+                                //subtitle={Date()}
+                                rightTitle= {"$"+item[0].costo}
+                                rightTitleStyle ={styles.itemStyleCost}
                             />
                         )}
                         keyExtractor={this._keyExtractor}
+                       
                     />
+
                 </List>
             </View>
             <View style={styles.floatButtonContainer}>
@@ -123,6 +226,7 @@ export default class App extends React.Component {
                    />
                 </TouchableOpacity>
             </View>
+           
       </View>
     );
   }
@@ -147,12 +251,8 @@ const styles = StyleSheet.create({
     },
     element2: {
         flex: 5,
-        //borderWidth:1,
-        //justifyContent:'center',
-        //marginTop: 10,
         width: '100%',
-        //alignItems: 'center',
-       //padding:5
+       
     },
     periodoText: {
         fontSize: 50,
@@ -254,6 +354,18 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 5,
     },
-
+    itemStyleDesc:{
+        fontSize:18,
+        fontFamily: 'monserrat',
+        padding: 5,
+       // margin:10,
+    },
+    itemStyleCost:{
+        fontWeight:'bold',
+        fontSize:20,
+        fontFamily: 'monserrat',
+        padding: 5,
+        
+    },
     
 });

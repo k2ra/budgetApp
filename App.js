@@ -11,17 +11,29 @@ import {
   Text,
   View
 } from 'react-native';
-//import { createTabNavigator } from 'react-navigation';
-import EstadoCuenta  from './src/components/EstadoCuenta';
+import { createStackNavigator } from 'react-navigation';
+//import EstadoCuenta  from './src/components/EstadoCuenta';
 import Dashboard from './src/components/Dashboard';
+import Topbox from './src/components/Topbox';
+import AddBudget from './src/components/AddBudget';
+import { YellowBox } from 'react-native';
+YellowBox.ignoreWarnings(['Warning: isMounted(...) is deprecated', 'Module RCTImageLoader']);
 
-
+const Route = createStackNavigator(
+  {
+    
+    Dashboard: { screen: Dashboard},
+    Topbox:{ screen: Topbox},
+    AddBudget: {screen: AddBudget}
+  },
+  {
+    initialRouteName: 'Dashboard',
+  }
+)
 export default class App extends Component {
   render() {
     return (
-      <View style={styles.container}>
-        <Dashboard/>
-      </View>
+      <Route navigation={this.props.navigation} style={styles.container}/>
     );
   }
 }
